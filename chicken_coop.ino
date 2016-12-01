@@ -2,6 +2,7 @@
 #include <Adafruit_Sensor.h>
 #include <DHT.h>
 #include <DHT_U.h>
+#include <SharpIR.h>
 
 enum State{ OPEN, CLOSED, OPENING, CLOSING, ERRORSTATE };
 enum controlType {CW, CCW, STOP, COAST};
@@ -9,7 +10,7 @@ enum controlType {CW, CCW, STOP, COAST};
 
 
 //Analog Input Pins
-int outCounerPin = 1;
+int outCounterPin = 1;
 int inCounterPin = 2;
 int lightPin = 0;
 
@@ -30,15 +31,20 @@ int motorControlPin2 = 9;
 //State variables
 int temperature = 0;
 int lightLevel = 0;
+int numChickens = 4;
+int numInside = numChickens;
 bool doorIsOpen = true;
 bool doorIsClosed = false;
 bool resetIsPushed = false;
 bool sunny = false;
 bool warm = false;
 bool allInside = true;
+bool inIsTripped, outIsTripped, inWasTripped, outWasTripped;
 State state;
 long timeStart;
 DHT_Unified dht(tempPin, DHT22);
+SharpIR in(inCounterPin, 25, 93, 20150);
+SharpIR out(outCounterPin, 25, 93, 20150);
 
 void checkLight()
 {
@@ -77,11 +83,55 @@ void checkReset()
   resetIsPushed = digitalRead(resetPin);
 }
 
+void checkCounter()
+{
+  int threshold = 60;
+  //set which sensors have been tripped
+  inIsTripped = ( in.distance() < threshold );
+  outIsTripped = ( out.distance() < threshold);
+  /*
+  Serial.print(inIsTripped);
+  Serial.print("  ");
+  Serial.print(outIsTripped);
+  Serial.print("  ");
+  Serial.print(inWasTripped);
+  Serial.print("  ");
+  Serial.print(outWasTripped);
+  Serial.print("  ");
+  */
+  
+  if ( inWasTripped && outWasTripped && inIsTripped && !outIsTripped)
+  {
+    numInside++;
+  }
+  if ( inWasTripped && !outWasTripped && inIsTripped && outIsTripped)
+  {
+    numInside--;
+  }
+  Serial.println(numInside);
+  //if all the chickens are inside, set the allInside bool
+  if (numInside == numChickens)
+  {
+    allInside = true;
+  }
+  else if(numInside < numChickens)
+  {
+    allInside = false;
+  }
+  else
+  {
+    //state = ERRORSTATE;
+  }
+  inWasTripped = inIsTripped;
+  outWasTripped = outIsTripped;
+}
+
 void checkSensors()
 {
   checkLight();
   checkTemp();
   checkSwitches();
+  checkCounter();
 }
 
 /*
@@ -136,13 +186,15 @@ void runMotor ( controlType control) {
 void setup() 
 {
   Serial.begin(9600);
-  state = CLOSING;
+  state = OPENING;
 
   analogWrite(motorSpeedPin, 255);
 
   pinMode(motorSpeedPin,OUTPUT);
   pinMode(motorControlPin1,OUTPUT);
   pinMode(motorControlPin2,OUTPUT);
+  pinMode(inCounterPin, INPUT);
+  pinMode(outCounterPin, INPUT);
   
   dht.begin();
   sensor_t sensor;
@@ -154,7 +206,7 @@ void setup()
   
   while ( false && !doorIsOpen )
   {
-    Serial.println("running Motor");
+    //Serial.println("running Motor");
     runMotor(CW);
     delay(500);
     checkSensors();
@@ -172,11 +224,11 @@ void loop()
   timeStart = millis();
   while ( state == CLOSED )
   {
-    delay(250);
-    Serial.print("CLOSED    ");
-    Serial.print(temperature);
-    Serial.print("    ");
-    Serial.println(lightLevel);
+    //delay(250);
+    //Serial.print("CLOSED    ");
+    //Serial.print(temperature);
+    //Serial.print("    ");
+    //Serial.println(lightLevel);
     checkSensors();
     //Serial.println(doorIsOpen);
     if ( timerPast(3000) && warm && sunny )
@@ -188,8 +240,8 @@ void loop()
   timeStart = millis();
   while ( state == OPENING )
   {
-    delay(250);
-    Serial.println("OPENING");
+    //delay(250);
+    //Serial.println("OPENING");
     checkSensors();
     //Serial.println(doorIsOpen);
     if ( !doorIsOpen )
@@ -212,8 +264,8 @@ void loop()
   
   while ( state == OPEN ) 
   {
-    delay(250);
-    Serial.println("OPEN");
+    //delay(250);
+    //Serial.println("OPEN");
     checkSensors();
     //Serial.println(doorIsOpen);
     if ( (allInside && (!sunny || !warm)) )
@@ -225,8 +277,8 @@ void loop()
   timeStart = millis();
   while ( state == CLOSING )
   {
-    delay(250);
-    Serial.println("CLOSING");
+    //delay(250);
+    //Serial.println("CLOSING");
     checkSensors();
     //Serial.println(doorIsOpen);
     if ( !doorIsClosed )
@@ -249,7 +301,7 @@ void loop()
 
   while ( state == ERRORSTATE )
   {
-    delay(250);
+    //delay(250);
     Serial.println("ERRORSTATE");
     digitalWrite( errorPin, HIGH );
     checkReset();
