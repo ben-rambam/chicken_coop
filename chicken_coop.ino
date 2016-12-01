@@ -105,7 +105,7 @@ void runMotor ( controlType control) {
   switch (control) {
     case CW:
       // set the Left Motor CW
-      Serial.print(" CW");
+      //Serial.print(" CW");
       analogWrite(motorSpeedPin, 255);
       digitalWrite(motorControlPin1, HIGH);   // sets the Left Motor CW
       digitalWrite(motorControlPin2, LOW);
@@ -150,8 +150,9 @@ void setup()
   dht.humidity().getSensor(&sensor);
 
   doorIsOpen = false;
+
   
-  while ( !doorIsOpen )
+  while ( false && !doorIsOpen )
   {
     Serial.println("running Motor");
     runMotor(CW);
@@ -177,7 +178,7 @@ void loop()
     Serial.print("    ");
     Serial.println(lightLevel);
     checkSensors();
-    Serial.println(doorIsOpen);
+    //Serial.println(doorIsOpen);
     if ( timerPast(3000) && warm && sunny )
     {
       state = OPENING;
@@ -190,7 +191,7 @@ void loop()
     delay(250);
     Serial.println("OPENING");
     checkSensors();
-    Serial.println(doorIsOpen);
+    //Serial.println(doorIsOpen);
     if ( !doorIsOpen )
     {
       runMotor(CCW);
@@ -214,7 +215,7 @@ void loop()
     delay(250);
     Serial.println("OPEN");
     checkSensors();
-    Serial.println(doorIsOpen);
+    //Serial.println(doorIsOpen);
     if ( (allInside && (!sunny || !warm)) )
     {
       state = CLOSING;
@@ -227,7 +228,7 @@ void loop()
     delay(250);
     Serial.println("CLOSING");
     checkSensors();
-    Serial.println(doorIsOpen);
+    //Serial.println(doorIsOpen);
     if ( !doorIsClosed )
     {
       runMotor(CW);
