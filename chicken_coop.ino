@@ -1,3 +1,4 @@
+
 #include <Adafruit_Sensor.h>
 #include <DHT.h>
 #include <DHT_U.h>
@@ -15,8 +16,8 @@ int lightPin = 0;
 //Digital Input Pins
 int tempPin = 7;
 int resetPin = 6;
-int doorClosedPin = 4;
-int doorOpenPin = 5;
+int doorClosedPin = 5;
+int doorOpenPin = 4;
 
 //Analog Output Pins
 int motorSpeedPin = 3;
@@ -29,7 +30,7 @@ int motorControlPin2 = 9;
 //State variables
 int temperature = 0;
 int lightLevel = 0;
-bool doorIsOpen = false;
+bool doorIsOpen = true;
 bool doorIsClosed = false;
 bool resetIsPushed = false;
 bool sunny = false;
@@ -67,7 +68,7 @@ void checkTemp()
 
 void checkSwitches()
 {
-  doorIsOpen = digitalRead(doorOpenPin);
+  doorIsOpen = !digitalRead(doorOpenPin);
   doorIsClosed = digitalRead(doorClosedPin);
 }
 
@@ -88,7 +89,6 @@ bool warm()
 {
   return temperature > 34;
 }
-
 bool sunny()
 {
   return lightLevel > 50;
@@ -105,6 +105,7 @@ void runMotor ( controlType control) {
   switch (control) {
     case CW:
       // set the Left Motor CW
+      Serial.print(" CW");
       analogWrite(motorSpeedPin, 255);
       digitalWrite(motorControlPin1, HIGH);   // sets the Left Motor CW
       digitalWrite(motorControlPin2, LOW);
@@ -139,26 +140,44 @@ void setup()
 
   analogWrite(motorSpeedPin, 255);
 
+  pinMode(motorSpeedPin,OUTPUT);
+  pinMode(motorControlPin1,OUTPUT);
+  pinMode(motorControlPin2,OUTPUT);
   
   dht.begin();
   sensor_t sensor;
   dht.temperature().getSensor(&sensor);
   dht.humidity().getSensor(&sensor);
 
+  doorIsOpen = false;
+  
+  while ( !doorIsOpen )
+  {
+    Serial.println("running Motor");
+    runMotor(CW);
+    delay(500);
+    checkSensors();
+  }
+  
+
 }
 
 void loop() 
 {
+  delay(250);
+
   sensors_event_t event;  
   dht.temperature().getEvent(&event);
   timeStart = millis();
   while ( state == CLOSED )
   {
+    delay(250);
     Serial.print("CLOSED    ");
     Serial.print(temperature);
     Serial.print("    ");
     Serial.println(lightLevel);
     checkSensors();
+    Serial.println(doorIsOpen);
     if ( timerPast(3000) && warm && sunny )
     {
       state = OPENING;
@@ -168,8 +187,10 @@ void loop()
   timeStart = millis();
   while ( state == OPENING )
   {
+    delay(250);
     Serial.println("OPENING");
     checkSensors();
+    Serial.println(doorIsOpen);
     if ( !doorIsOpen )
     {
       runMotor(CCW);
@@ -190,8 +211,10 @@ void loop()
   
   while ( state == OPEN ) 
   {
+    delay(250);
     Serial.println("OPEN");
     checkSensors();
+    Serial.println(doorIsOpen);
     if ( (allInside && (!sunny || !warm)) )
     {
       state = CLOSING;
@@ -201,8 +224,10 @@ void loop()
   timeStart = millis();
   while ( state == CLOSING )
   {
+    delay(250);
     Serial.println("CLOSING");
     checkSensors();
+    Serial.println(doorIsOpen);
     if ( !doorIsClosed )
     {
       runMotor(CW);
@@ -223,6 +248,7 @@ void loop()
 
   while ( state == ERRORSTATE )
   {
+    delay(250);
     Serial.println("ERRORSTATE");
     digitalWrite( errorPin, HIGH );
     checkReset();
@@ -233,3 +259,4 @@ void loop()
     }
   }
 }
+
